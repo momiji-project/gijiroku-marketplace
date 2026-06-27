@@ -1,7 +1,7 @@
 {
   "name": "gijiroku",
   "description": "Lark Minutes（妙記）から要約・タスク・図解入りの議事録ドキュメントを自動生成するスキル。テナント固有の値はローカル設定ファイルに保存し、プラグイン本体には含めない。",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "momiji-project"
   }

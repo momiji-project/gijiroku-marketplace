@@ -63,27 +63,50 @@ description: 自分の最新 Lark Minutes（妙記）から、要約・タスク
   - `npm` 自体が無ければ、Node.js（npm 同梱）の導入を案内してから再実行。
 - 導入後は **CRITICAL の参照ファイル**が `~/.claude/skills/` 配下に揃う。揃っていなければ `lark-cli update` を案内。
 
-### 0-3. 認証の確認・実施（QRで完結）
+### 0-3. 認証（デバイスフローに固定・必要権限を初回1回で一括取得）
 
-認証確認のため、軽い読み取りを1回実行：
+このスキルは Minutes・VC・ドキュメント・ドライブを使う。**認証はデバイスフロー（QR）に固定**し、
+**必要ドメインを最初に全部まとめて要求して、デバイスフローを1回で完結**させる（scope の都度追加でQRを何度も出さない）。
+
+まず認証済みか軽く確認：
 ```bash
 lark-cli minutes +search --owner-ids me --page-size 1 --format json --as user
 ```
-- 成功 → 認証OK。
-- 認証エラー / `me` が解決できない / 権限不足（`permission_violations` 等）→ `lark-shared/SKILL.md` の **「Agent 代理発起認証（Split-Flow）」** に従って認証する：
-  1. `lark-cli auth login --scope "<CLI が返した不足 scope / hint に従う>" --no-wait --json`（初回で scope 不明なら、上記読み取りが返す `permission_violations` / `hint` / `console_url` を使う）
-  2. 返ってきた `verification_url` を `lark-cli auth qrcode <verification_url> --output "lark-login-qr.png"` で **QR画像**にし、ユーザーに提示（「スマホの Lark アプリで読み取ってください」）
-  3. ユーザーが「OK／完了」と言ったら、**あなたが** `lark-cli auth login --device-code <device_code>` を実行して確定
-  4. 不足 scope が出るたびに同様に追加認証（増分授権）。必要になりうる範囲：Minutes 検索/読取・逐字稿エクスポート、VC ノート読取、ドキュメント作成/編集。**scope は推測せず、CLI が返す不足分に従う**。
-- セキュリティ：トークン/鍵を画面に出力しない。`lark-login-qr.png` は完了後に削除してよい。
+- 成功（このスキルの全機能に必要な権限が既にある）→ 認証OK。0-4 へ。
+- 失敗（未認証 / `me` 解決不可 / 権限不足）→ **1回のデバイスフローで一括認証**する：
 
-### 0-4. 保存先フォルダの設定
+  1. 必要ドメインをまとめて要求（**これが本スキルの固定の認証コマンド**。`--no-wait --json` がデバイスフロー。エージェント環境ではブロック型は使わない）：
+     ```bash
+     lark-cli auth login --domain minutes,vc,docs,drive --no-wait --json
+     ```
+     - `minutes`＝妙記の検索/読取・逐字稿、`vc`＝会議ノート読取、`docs`＝議事録ドキュメント作成/編集、`drive`＝保存先フォルダ作成。**この4ドメインで本スキルの権限は揃う**（scope の個別指定・推測は不要）。
+  2. 返却 `verification_url` を **QR画像**にしてユーザーへ提示（「スマホの Lark アプリで読み取ってください」）。`device_code` を控える：
+     ```bash
+     lark-cli auth qrcode "<verification_url>" --output "lark-login-qr.png"
+     ```
+  3. ユーザーが「OK／完了」と言ったら、**あなたが**確定：
+     ```bash
+     lark-cli auth login --device-code "<device_code>"
+     ```
+  → これで Minutes・VC・docs・drive をまとめて承認するので、**QR読み取りは原則1回**で済む。
 
-ユーザーに平易に質問：
-> 「議事録を保存したい Lark のフォルダを開いて、その URL をそのまま貼り付けてください。
-> （例）https://〈あなたのテナント〉.larksuite.com/drive/folder/xxxxxxxx 」
+  - 例外：万一それでも個別 scope 不足エラーが出た場合のみ、CLI が返す `permission_violations` の不足分を `--scope` で追加（同じくデバイスフロー `--no-wait/--device-code`）。これは通常発生しない想定。
+- セキュリティ：トークン/鍵を画面に出さない。`lark-login-qr.png` は完了後に削除してよい。
 
-貼られた URL から **フォルダ token を抽出**（`/folder/` の後ろ、または最後のパスセグメント。`?` 以降は除去）。
+### 0-4. 保存先フォルダの用意（自動作成がデフォルト）
+
+lark-cli は認証済みなので、**保存先フォルダは Lark Drive に自動作成**してよい。
+plan モード的に一言伝えてから実行（書き込み操作のため確認を取る）：
+> 「Lark Drive に議事録の保存先フォルダ『議事録』を自動作成して保存先にします。よろしいですか？
+> （既存のフォルダを使いたい場合は、そのフォルダの URL を貼ってください）」
+
+- **自動作成（デフォルト）**：
+  ```bash
+  lark-cli drive +create-folder --name "議事録" --format json --as user
+  ```
+  返却 JSON の **`folder_token`** を保存先として使う（`--folder-token` を省略するとルート直下に作成される）。
+- **既存フォルダを使う場合**：ユーザーが貼った URL から token を抽出（`/folder/` の後ろ、または最後のパスセグメント、`?` 以降は除去）。
+- 重複防止：このウィザードは設定ファイルが無いときだけ走るため、通常は一度しか作成しない。再設定時は既存フォルダの再利用も可。
 
 ### 0-5. タグの設定（任意）
 

@@ -1,0 +1,9 @@
+# ローカル設定・一時ファイルは絶対に公開しない
+gijiroku-config.json
+*config.local*
+*.local.json
+.gijiroku_body.xml
+.gijiroku_transcript.xml
+lark-login-qr.png
+minutes/
+.DS_Store

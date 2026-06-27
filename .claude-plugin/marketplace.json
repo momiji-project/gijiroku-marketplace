@@ -1,0 +1,14 @@
+{
+  "name": "gijiroku-marketplace",
+  "description": "Lark Minutes（妙記）から議事録ドキュメントを自動生成するプラグインの配布マーケットプレイス。",
+  "owner": {
+    "name": "momiji-project"
+  },
+  "plugins": [
+    {
+      "name": "gijiroku",
+      "source": "./plugins/gijiroku",
+      "description": "Lark Minutes（妙記）から要約・タスク・図解入りの議事録ドキュメントを自動生成。初回はチャット上のウィザードで保存先と認証を設定。"
+    }
+  ]
+}
